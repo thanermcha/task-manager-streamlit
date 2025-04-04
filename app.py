@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # Classe para representar uma Tarefa
 class Task:
@@ -8,35 +9,41 @@ class Task:
         self.deadline = deadline
         self.status = "Pendente"
         self.tracked_time = 0  # Em minutos
-    
+
     def update_status(self, new_status):
         self.status = new_status
-    
+
     def track_time(self, minutes):
         self.tracked_time += minutes
-    
-    def __str__(self):
-        return f"{self.title} - {self.status} (Responsável: {self.assignee}, Prazo: {self.deadline}, Tempo: {self.tracked_time} min)"
+
+    def to_dict(self):
+        return {
+            "Título": self.title,
+            "Responsável": self.assignee,
+            "Prazo": self.deadline,
+            "Status": self.status,
+            "Tempo (min)": self.tracked_time
+        }
 
 # Gerenciador de Tarefas
 class TaskManager:
     def __init__(self):
         self.tasks = []
-    
+
     def add_task(self, title, assignee=None, deadline=None):
         task = Task(title, assignee, deadline)
         self.tasks.append(task)
-    
+
     def list_tasks(self):
         return self.tasks
-    
+
     def update_task_status(self, title, new_status):
         for task in self.tasks:
             if task.title == title:
                 task.update_status(new_status)
                 return True
         return False
-    
+
     def track_task_time(self, title, minutes):
         for task in self.tasks:
             if task.title == title:
@@ -44,13 +51,16 @@ class TaskManager:
                 return True
         return False
 
-# Criando instância do gerenciador de tarefas
-tm = TaskManager()
+# Criando ou recuperando instância do gerenciador de tarefas
+if "tm" not in st.session_state:
+    st.session_state.tm = TaskManager()
+tm = st.session_state.tm
 
 # Interface Streamlit
 st.title("Gerenciador de Tarefas")
 
 # Adicionar Tarefa
+st.subheader("Adicionar Nova Tarefa")
 title = st.text_input("Nome da Tarefa:")
 assignee = st.text_input("Responsável:")
 deadline = st.date_input("Prazo:")
@@ -59,11 +69,17 @@ if st.button("Adicionar Tarefa"):
     st.success(f"Tarefa '{title}' adicionada!")
 
 # Listar Tarefas
-st.subheader("Tarefas Atuais")
-for task in tm.list_tasks():
-    st.write(str(task))
+st.subheader("📋 Lista de Tarefas")
+tasks = tm.list_tasks()
+if tasks:
+    task_data = [task.to_dict() for task in tasks]
+    df = pd.DataFrame(task_data)
+    st.dataframe(df, use_container_width=True)
+else:
+    st.info("Nenhuma tarefa encontrada.")
 
 # Atualizar Status
+st.subheader("Atualizar Status")
 task_to_update = st.text_input("Nome da tarefa para atualizar status:")
 new_status = st.selectbox("Novo status:", ["Pendente", "Em andamento", "Concluído"])
 if st.button("Atualizar Status"):
@@ -73,6 +89,7 @@ if st.button("Atualizar Status"):
         st.error("Tarefa não encontrada.")
 
 # Rastrear Tempo
+st.subheader("Rastrear Tempo de Trabalho")
 task_to_track = st.text_input("Nome da tarefa para rastrear tempo:")
 minutes = st.number_input("Minutos trabalhados:", min_value=0)
 if st.button("Adicionar Tempo"):
